@@ -20,14 +20,14 @@ func newTestCipher(key string) (*testCipher, error) {
 	}, nil
 }
 
-func (t *testCipher) encrypt(plaintext []byte) []byte {
+func (t *testCipher) Encrypt(plaintext []byte) ([]byte, error) {
 	ciphertext := make([]byte, len(plaintext))
 	t.block.Encrypt(ciphertext, plaintext)
-	return ciphertext
+	return ciphertext, nil
 }
 
-func (t *testCipher) decrypt(ciphertext []byte) []byte {
+func (t *testCipher) Decrypt(ciphertext []byte) ([]byte, error) {
 	plaintext := make([]byte, len(ciphertext))
 	t.block.Decrypt(plaintext, ciphertext)
-	return plaintext
+	return plaintext, nil
 }

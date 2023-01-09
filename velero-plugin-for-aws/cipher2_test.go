@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"compress/gzip"
-	_ "embed"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"
@@ -11,24 +10,22 @@ import (
 	"time"
 )
 
-const testKey = "aler,amz3daps.f9hgandkal4dsxk3d0"
-
-func Test_testCipher_decrypt_encrypt(t1 *testing.T) {
-	t1.Run("encrypt_decrypt", func(t *testing.T) {
+func Test_testCipher2_decrypt_encrypt(t1 *testing.T) {
+	t1.Run("simple encrypt and decrypt", func(t *testing.T) {
 		// given
-		cipher, err := newTestCipher(testKey)
+		cipher, err := newTestCipher2("--------10--------20--------3032")
 		require.NoError(t, err)
 
 		// when
 		encrypt, err := cipher.Encrypt([]byte("this is a testee"))
 		require.NoError(t, err)
+		require.NoError(t, err)
 		decrypt, err := cipher.Decrypt(encrypt)
 		require.NoError(t, err)
 
-		// then
-		assert.Equal(t, string(decrypt), "this is a testee")
+		assert.Equal(t, "this is a testee", string(decrypt))
 	})
-	t1.Run("encrypt_decrypt_gzip", func(t *testing.T) {
+	t1.Run("encrypt and decrypt a gzip file", func(t *testing.T) {
 		// given
 		to_encrypt := []byte("data to encrypt")
 		var b bytes.Buffer
@@ -38,7 +35,7 @@ func Test_testCipher_decrypt_encrypt(t1 *testing.T) {
 		date := time.Date(1977, time.May, 25, 0, 0, 0, 0, time.UTC)
 		gz.ModTime = date.UTC()
 
-		cipher, err := newTestCipher(testKey)
+		cipher, err := newTestCipher2(testKey)
 		require.NoError(t, err)
 
 		// when

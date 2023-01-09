@@ -68,6 +68,11 @@ type s3Interface interface {
 	GetObjectRequest(input *s3.GetObjectInput) (req *request.Request, output *s3.GetObjectOutput)
 }
 
+type Cipher interface {
+	Encrypt(plainBytes []byte) ([]byte, error)
+	Decrypt(cipherBytes []byte) ([]byte, error)
+}
+
 type ObjectStore struct {
 	log                  logrus.FieldLogger
 	s3                   s3Interface
@@ -77,7 +82,7 @@ type ObjectStore struct {
 	sseCustomerKey       string
 	signatureVersion     string
 	serverSideEncryption string
-	cipher               *testCipher
+	cipher               Cipher
 }
 
 func newObjectStore(logger logrus.FieldLogger) *ObjectStore {
@@ -236,7 +241,7 @@ func (o *ObjectStore) Init(config map[string]string) error {
 		o.preSignS3 = o.s3
 	}
 
-	o.cipher, err = newTestCipher(encryptionKey)
+	o.cipher, err = newTestCipher2(encryptionKey)
 	if err != nil {
 		return err
 	}
@@ -331,7 +336,10 @@ func (o *ObjectStore) PutObject(bucket, key string, body io.Reader) error {
 		return err
 	}
 
-	encryptedContent := o.cipher.encrypt(bodyContent)
+	encryptedContent, err := o.cipher.Encrypt(bodyContent)
+	if err != nil {
+		return err
+	}
 	encryptedBody := bytes.NewReader(encryptedContent)
 
 	req := &s3manager.UploadInput{
@@ -435,7 +443,10 @@ func (o *ObjectStore) GetObject(bucket, key string) (io.ReadCloser, error) {
 		return nil, err
 	}
 
-	decryptedContent := o.cipher.decrypt(bodyContent)
+	decryptedContent, err := o.cipher.Decrypt(bodyContent)
+	if err != nil {
+		return nil, err
+	}
 	decryptedBody := io.NopCloser(bytes.NewReader(decryptedContent))
 
 	return decryptedBody, nil
