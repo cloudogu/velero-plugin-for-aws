@@ -42,20 +42,23 @@ import (
 )
 
 const (
-	s3URLKey                     = "s3Url"
-	publicURLKey                 = "publicUrl"
-	kmsKeyIDKey                  = "kmsKeyId"
-	customerKeyEncryptionFileKey = "customerKeyEncryptionFile"
-	s3ForcePathStyleKey          = "s3ForcePathStyle"
-	bucketKey                    = "bucket"
-	signatureVersionKey          = "signatureVersion"
-	credentialsFileKey           = "credentialsFile"
-	credentialProfileKey         = "profile"
-	serverSideEncryptionKey      = "serverSideEncryption"
-	insecureSkipTLSVerifyKey     = "insecureSkipTLSVerify"
-	caCertKey                    = "caCert"
-	enableSharedConfigKey        = "enableSharedConfig"
+	s3URLKey                      = "s3Url"
+	publicURLKey                  = "publicUrl"
+	kmsKeyIDKey                   = "kmsKeyId"
+	customerKeyEncryptionFileKey  = "customerKeyEncryptionFile"
+	s3ForcePathStyleKey           = "s3ForcePathStyle"
+	bucketKey                     = "bucket"
+	signatureVersionKey           = "signatureVersion"
+	credentialsFileKey            = "credentialsFile"
+	credentialProfileKey          = "profile"
+	serverSideEncryptionKey       = "serverSideEncryption"
+	insecureSkipTLSVerifyKey      = "insecureSkipTLSVerify"
+	caCertKey                     = "caCert"
+	enableSharedConfigKey         = "enableSharedConfig"
+	enableClientSideEncryptionKey = "enableClientSideEncryption"
 )
+
+const encryptionKey = "aler,amz3daps.f9hgandkal4dsxk3d0"
 
 type s3Interface interface {
 	HeadObject(input *s3.HeadObjectInput) (*s3.HeadObjectOutput, error)
@@ -90,9 +93,6 @@ func isValidSignatureVersion(signatureVersion string) bool {
 }
 
 func (o *ObjectStore) Init(config map[string]string) error {
-	o.log.Info("CES_STORE ########################################################")
-	o.log.Info("CES_STORE ########################################################")
-	o.log.Info("CES_STORE ########################################################")
 	if err := veleroplugin.ValidateObjectStoreConfigKeys(config,
 		regionKey,
 		s3URLKey,
@@ -236,7 +236,10 @@ func (o *ObjectStore) Init(config map[string]string) error {
 		o.preSignS3 = o.s3
 	}
 
-	o.cipher = newTestCipher()
+	o.cipher, err = newTestCipher(encryptionKey)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
