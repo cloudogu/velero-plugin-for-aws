@@ -3,31 +3,51 @@ package main
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"crypto/rand"
+	"io"
 )
 
-type testCipher struct {
-	block cipher.Block
+type aesCipher struct {
+	gcm cipher.AEAD
+	key []byte
 }
 
-func newTestCipher(key string) (*testCipher, error) {
-	block, err := aes.NewCipher([]byte(key))
+func newAesCipher(key string) (*aesCipher, error) {
+	keyBytes := []byte(key)
+	block, err := aes.NewCipher(keyBytes)
 	if err != nil {
 		return nil, err
 	}
 
-	return &testCipher{
-		block: block,
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return &aesCipher{
+		gcm: aesGCM,
+		key: keyBytes,
 	}, nil
 }
 
-func (t *testCipher) Encrypt(plaintext []byte) ([]byte, error) {
-	ciphertext := make([]byte, len(plaintext))
-	t.block.Encrypt(ciphertext, plaintext)
-	return ciphertext, nil
+func (t *aesCipher) Encrypt(plainBytes []byte) ([]byte, error) {
+	nonce := make([]byte, t.gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, err
+	}
+
+	cipherBytes := t.gcm.Seal(nonce, nonce, plainBytes, nil)
+	return cipherBytes, nil
 }
 
-func (t *testCipher) Decrypt(ciphertext []byte) ([]byte, error) {
-	plaintext := make([]byte, len(ciphertext))
-	t.block.Decrypt(plaintext, ciphertext)
-	return plaintext, nil
+func (t *aesCipher) Decrypt(cipherBytes []byte) ([]byte, error) {
+	nonceSize := t.gcm.NonceSize()
+	nonce, cipherBytesWithoutNounce := cipherBytes[:nonceSize], cipherBytes[nonceSize:]
+
+	plainBytes, err := t.gcm.Open(nil, nonce, cipherBytesWithoutNounce, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return plainBytes, nil
 }

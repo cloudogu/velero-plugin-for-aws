@@ -241,7 +241,7 @@ func (o *ObjectStore) Init(config map[string]string) error {
 		o.preSignS3 = o.s3
 	}
 
-	o.cipher, err = newTestCipher2(encryptionKey)
+	o.cipher, err = newAesCipher(encryptionKey)
 	if err != nil {
 		return err
 	}
