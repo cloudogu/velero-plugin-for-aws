@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"bytes"
 	"crypto/tls"
 	"io"
 	"net/http"
@@ -73,6 +74,7 @@ type ObjectStore struct {
 	sseCustomerKey       string
 	signatureVersion     string
 	serverSideEncryption string
+	cipher               *testCipher
 }
 
 func newObjectStore(logger logrus.FieldLogger) *ObjectStore {
@@ -234,6 +236,8 @@ func (o *ObjectStore) Init(config map[string]string) error {
 		o.preSignS3 = o.s3
 	}
 
+	o.cipher = newTestCipher()
+
 	return nil
 }
 
@@ -319,11 +323,21 @@ func newAWSConfig(url, region string, forcePathStyle bool) (*aws.Config, error) 
 }
 
 func (o *ObjectStore) PutObject(bucket, key string, body io.Reader) error {
+	bodyContent, err := io.ReadAll(body)
+	if err != nil {
+		return err
+	}
+
+	encryptedContent := o.cipher.encrypt(bodyContent)
+	encryptedBody := bytes.NewReader(encryptedContent)
+
 	req := &s3manager.UploadInput{
 		Bucket: &bucket,
 		Key:    &key,
-		Body:   body,
+		Body:   encryptedBody,
 	}
+
+	o.log.Infof("PutObject: %+v", req)
 
 	switch {
 	// if kmsKeyID is not empty, assume a server-side encryption (SSE)
@@ -340,7 +354,7 @@ func (o *ObjectStore) PutObject(bucket, key string, body io.Reader) error {
 		req.ServerSideEncryption = aws.String(o.serverSideEncryption)
 	}
 
-	_, err := o.s3Uploader.Upload(req)
+	_, err = o.s3Uploader.Upload(req)
 
 	return errors.Wrapf(err, "error putting object %s", key)
 }
@@ -408,7 +422,20 @@ func (o *ObjectStore) GetObject(bucket, key string) (io.ReadCloser, error) {
 		return nil, errors.Wrapf(err, "error getting object %s", key)
 	}
 
-	return res.Body, nil
+	bodyContent, err := io.ReadAll(res.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	err = res.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	decryptedContent := o.cipher.decrypt(bodyContent)
+	decryptedBody := io.NopCloser(bytes.NewReader(decryptedContent))
+
+	return decryptedBody, nil
 }
 
 func (o *ObjectStore) ListCommonPrefixes(bucket, prefix, delimiter string) ([]string, error) {
