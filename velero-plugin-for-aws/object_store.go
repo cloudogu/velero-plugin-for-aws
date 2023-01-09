@@ -88,6 +88,9 @@ func isValidSignatureVersion(signatureVersion string) bool {
 }
 
 func (o *ObjectStore) Init(config map[string]string) error {
+	o.log.Info("CES_STORE ########################################################")
+	o.log.Info("CES_STORE ########################################################")
+	o.log.Info("CES_STORE ########################################################")
 	if err := veleroplugin.ValidateObjectStoreConfigKeys(config,
 		regionKey,
 		s3URLKey,
